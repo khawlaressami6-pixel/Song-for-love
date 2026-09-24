@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Song for Love, from Khawla</title>
+  <style>
+    body {
+      margin: 0;
+      background: #d8e2dc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', Courier, monospace;
+      user-select: none;
+    }
+
+    h1 {
+      letter-spacing: 3px;
+      color: #3f4e4f;
+      margin-bottom: 20px;
+      text-align: center;
+      text-transform: uppercase;
+      font-size: 22px;
+    }
+
+    canvas {
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .instructions {
+      margin-top: 15px;
+      font-size: 13px;
+      color: #666;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>SONG FOR LOVE , FROM KHAWLA</h1>
+  <canvas id="app" width="600" height="500"></canvas>
+  <div class="instructions">DRAG THE NEEDLE ONTO THE RECORD TO PLAY MUSIC</div>
+
+  <audio id="mySong" loop src="https://files.catbox.moe/7912oa.mpeg"></audio>
+
+  <script>
+    const canvas = document.getElementById('app');
+    const ctx = canvas.getContext('2d');
+    const audio = document.getElementById('mySong');
+
+    const pond = { x: 260, y: 260, radius: 180 };
+    let rotation = 0;
+    let isPlaying = false;
+
+    const armPivot = { x: 480, y: 80 };
+    let armAngle = 0.2; 
+    let isDraggingArm = false;
+
+    function startMusic() {
+      audio.play().catch(e => console.log("Audio play error:", e));
+    }
+
+    function stopMusic() {
+      audio.pause();
+    }
+
+    // Peace & Love symbols
+    const symbolsList = [
+      { angle: 0, distance: 100, speed: 0.008, type: 'peace', color: '#e63946' },
+      { angle: 2.1, distance: 130, speed: 0.006, type: 'heart', color: '#ff758f' },
+      { angle: 4.2, distance: 70,  speed: 0.010, type: 'peace', color: '#ffffff' }
+    ];
+
+    function drawPond() {
+      ctx.save();
+      ctx.translate(pond.x, pond.y);
+      ctx.rotate(rotation);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, pond.radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#17c3b2';
+      ctx.fill();
+
+      for (let r = 50; r < pond.radius; r += 15) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 45, 0, Math.PI * 2);
+      ctx.fillStyle = '#f4a261';
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawPeaceSymbol(x, y, radius, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, -radius);
+      ctx.lineTo(0, radius);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-radius * 0.7, radius * 0.7);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(radius * 0.7, radius * 0.7);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawHeartSymbol(x, y, size, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = color;
+
+      ctx.beginPath();
+      ctx.moveTo(0, -size / 4);
+      ctx.bezierCurveTo(-size / 2, -size, -size, -size / 3, 0, size / 2);
+      ctx.bezierCurveTo(size, -size / 3, size / 2, -size, 0, -size / 4);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawSymbols() {
+      symbolsList.forEach(item => {
+        if (isPlaying) item.angle += item.speed;
+
+        const x = pond.x + Math.cos(item.angle) * item.distance;
+        const y = pond.y + Math.sin(item.angle) * item.distance;
+
+        if (item.type === 'peace') {
+          drawPeaceSymbol(x, y, 14, item.color);
+        } else if (item.type === 'heart') {
+          drawHeartSymbol(x, y, 16, item.color);
+        }
+      });
+    }
+
+    function drawTonearm() {
+      ctx.save();
+      ctx.translate(armPivot.x, armPivot.y);
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fillStyle = '#b7094c';
+      ctx.fill();
+
+      ctx.rotate(armAngle);
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 260);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.fillStyle = '#b7094c';
+      ctx.fillRect(-8, 255, 16, 22);
+
+      ctx.restore();
+    }
+
+    function update() {
+      if (isPlaying) {
+        rotation += 0.005;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      drawPond();
+      drawSymbols();
+      drawTonearm();
+
+      requestAnimationFrame(update);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const tipX = armPivot.x - Math.sin(armAngle) * 260;
+      const tipY = armPivot.y + Math.cos(armAngle) * 260;
+      const dist = Math.hypot(mouseX - tipX, mouseY - tipY);
+
+      if (dist < 50) {
+        isDraggingArm = true;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingArm) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const dx = mouseX - armPivot.x;
+        const dy = mouseY - armPivot.y;
+        
+        armAngle = Math.atan2(-dx, dy);
+
+        if (armAngle > 0.4 && armAngle < 1.1) {
+          if (!isPlaying) {
+            isPlaying = true;
+            startMusic();
+          }
+        } else {
+          if (isPlaying) {
+            isPlaying = false;
+            stopMusic();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingArm = false;
+    });
+
+    update();
+  </script>
+</body>
+</html>
