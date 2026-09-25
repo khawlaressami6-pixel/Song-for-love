@@ -15,6 +15,7 @@
       min-height: 100vh;
       font-family: 'Courier New', Courier, monospace;
       user-select: none;
+      touch-action: none; /* Prevents screen scrolling while dragging needle on mobile */
     }
 
     h1 {
@@ -23,12 +24,15 @@
       margin-bottom: 20px;
       text-align: center;
       text-transform: uppercase;
-      font-size: 22px;
+      font-size: 20px;
+      padding: 0 10px;
     }
 
     canvas {
       background: transparent;
       cursor: pointer;
+      max-width: 100%;
+      height: auto;
     }
 
     .instructions {
@@ -36,6 +40,8 @@
       font-size: 13px;
       color: #666;
       letter-spacing: 1px;
+      text-align: center;
+      padding: 0 10px;
     }
   </style>
 </head>
@@ -43,7 +49,7 @@
 
   <h1>SONG FOR LOVE , FROM KHAWLA</h1>
   <canvas id="app" width="600" height="500"></canvas>
-  <div class="instructions">DRAG THE NEEDLE ONTO THE RECORD TO PLAY MUSIC</div>
+  <div class="instructions">DRAG THE NEEDLE ONTO THE RECORD TO PLAY MUSIC<br><small>(Tap the vinyl to double the peace & love symbols!)</small></div>
 
   <audio id="mySong" loop src="https://files.catbox.moe/7912oa.mpeg"></audio>
 
@@ -68,23 +74,41 @@
       audio.pause();
     }
 
-    // Peace & Love symbols
-    const symbolsList = [
+    // Dynamic Orbiting Peace & Love symbols list
+    let symbolsList = [
       { angle: 0, distance: 100, speed: 0.008, type: 'peace', color: '#e63946' },
       { angle: 2.1, distance: 130, speed: 0.006, type: 'heart', color: '#ff758f' },
       { angle: 4.2, distance: 70,  speed: 0.010, type: 'peace', color: '#ffffff' }
     ];
+
+    // Double the symbols when clicking or tapping the vinyl area
+    function doubleSymbols() {
+      if (symbolsList.length > 50) return; // Prevent excessive lag limit
+      const currentLength = symbolsList.length;
+      for (let i = 0; i < currentLength; i++) {
+        const item = symbolsList[i];
+        symbolsList.push({
+          angle: item.angle + Math.PI + (Math.random() * 0.5 - 0.25),
+          distance: Math.min(160, Math.max(50, item.distance + (Math.random() * 40 - 20))),
+          speed: item.speed * (0.8 + Math.random() * 0.4),
+          type: Math.random() > 0.5 ? 'peace' : 'heart',
+          color: item.color
+        });
+      }
+    }
 
     function drawPond() {
       ctx.save();
       ctx.translate(pond.x, pond.y);
       ctx.rotate(rotation);
 
+      // Vinyl Record Base
       ctx.beginPath();
       ctx.arc(0, 0, pond.radius, 0, Math.PI * 2);
       ctx.fillStyle = '#17c3b2';
       ctx.fill();
 
+      // Grooves
       for (let r = 50; r < pond.radius; r += 15) {
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -93,6 +117,7 @@
         ctx.stroke();
       }
 
+      // Center Label
       ctx.beginPath();
       ctx.arc(0, 0, 45, 0, Math.PI * 2);
       ctx.fillStyle = '#f4a261';
@@ -196,28 +221,45 @@
       requestAnimationFrame(update);
     }
 
-    canvas.addEventListener('mousedown', (e) => {
+    // Input handlers helper function
+    function getPointerPos(e) {
       const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleStart(e) {
+      const pos = getPointerPos(e);
 
       const tipX = armPivot.x - Math.sin(armAngle) * 260;
       const tipY = armPivot.y + Math.cos(armAngle) * 260;
-      const dist = Math.hypot(mouseX - tipX, mouseY - tipY);
+      const distToArm = Math.hypot(pos.x - tipX, pos.y - tipY);
 
-      if (dist < 50) {
+      if (distToArm < 70) {
         isDraggingArm = true;
+      } else {
+        const distToVinyl = Math.hypot(pos.x - pond.x, pos.y - pond.y);
+        if (distToVinyl < pond.radius) {
+          doubleSymbols();
+        }
       }
-    });
+    }
 
-    canvas.addEventListener('mousemove', (e) => {
+    function handleMove(e) {
       if (isDraggingArm) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+        if (e.cancelable) e.preventDefault();
+        const pos = getPointerPos(e);
 
-        const dx = mouseX - armPivot.x;
-        const dy = mouseY - armPivot.y;
+        const dx = pos.x - armPivot.x;
+        const dy = pos.y - armPivot.y;
         
         armAngle = Math.atan2(-dx, dy);
 
@@ -233,13 +275,31 @@
           }
         }
       }
-    });
+    }
 
-    window.addEventListener('mouseup', () => {
+    function handleEnd() {
       isDraggingArm = false;
-    });
+    }
+
+    // Mouse Listeners
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // Mobile Touch Listeners
+    canvas.addEventListener('touchstart', handleStart, { passive: false });
+    canvas.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
 
     update();
   </script>
 </body>
 </html>
+
+
+   
+
+    
+
+
+     
